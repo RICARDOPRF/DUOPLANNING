@@ -1,6 +1,7 @@
 {
     "name": "Duoplanning",
     "short_name": "Duoplanning",
+    "description": "Aplicativo para trilhas de aprendizado com gamificação.",
     "start_url": "./index.html",
     "display": "standalone",
     "background_color": "#ffffff",
