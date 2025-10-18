@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Duoplanning — v4.2 (Login com título + Idiomas)</title>
+  <meta name="color-scheme" content="dark light">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <audio id="audioWin" preload="auto">
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_0b6ce6218f.mp3?filename=success-fanfare-trumpets-6185.mp3" type="audio/mpeg">
+  </audio>
+  <style>
+    :root{--bg:#0f1115;--text:#e9eef7;--muted:#a7b1c2;--primary:#3aa0ff;--accent:#ffb020;--success:#27c081;--danger:#ff5d5d;--panel:#161c24;--card:#141a22;--border:#273046;--locked:#6b7280}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:500 15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    .wrap{max-width:1120px;margin:0 auto;padding:24px}
+    h1,h2,h3{margin:0 0 12px}
+    .brand{display:flex;justify-content:center;margin-bottom:16px}
+    .brand h1{font-size:34px;letter-spacing:.3px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.1)}
+    .grid{display:grid;gap:12px}.grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#111720;color:var(--text);cursor:pointer;transition:transform .15s ease}
+    .btn.primary{background:var(--primary);color:#05131e;border:none}.btn.ghost{background:transparent}.btn:disabled{opacity:.6}
+    .meta{color:var(--muted);font-size:13px}.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#05131e;background:var(--accent);padding:4px 8px;border-radius:999px}
+    .xpbar{height:10px;background:#0b111a;border:1px solid var(--border);border-radius:999px;overflow:hidden}.xpbar>i{display:block;height:100%;background:linear-gradient(90deg,var(--success),#6ee7b7)}
+    .mod{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:#101723}
+    .mod .left{display:flex;align-items:center;gap:10px}.mod .lvl{font-size:20px}.lock{opacity:.85;color:var(--locked)}
+    .hidden{display:none !important}.row{display:flex;gap:12px;flex-wrap:wrap}
+    input[type="text"],select{background:#0f1520;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:999px;background:#0c131d}
+    .toast{position:fixed;right:16px;bottom:16px;background:#0c1a13;border:1px solid #124c2e;color:#b9f6ca;padding:12px 14px;border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.35);display:none}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:18px;animation:fadeIn .2s ease;z-index:20}
+    .overlay .sheet{max-width:860px;width:100%;background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 64px rgba(0,0,0,.5);overflow:hidden}
+    .sheet .head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);background:#0f1722}
+    .sheet .body{padding:16px}.q{font-size:17px;margin-bottom:10px}.opts{display:grid;gap:10px}
+    .opt{padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#0d1420;cursor:pointer;transition:background .2s ease,border-color .2s ease}
+    .opt.correct{border-color:#1f9d6b;background:#0b1712}.opt.wrong{border-color:#8b1d30;background:#190f12}
+    .exp{border-left:3px solid var(--accent);padding:8px 12px;margin-top:10px;background:#0f1622}
+    .foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+    .view{opacity:0;transform:translateY(8px);transition:opacity .25s ease,transform .25s ease}.view.show{opacity:1;transform:translateY(0)}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  </style>
+
+  <!-- Firebase (compat) for easy inline usage) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Top bar (oculto no login) -->
+  <div id="topBar" class="row hidden" style="align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="row" style="align-items:center">
+      <h1>Duoplanning</h1>
+    </div>
+    <div class="row">
+      <button id="btnConfig" class="btn ghost">⚙️ <span class="meta" style="font-size:14px" data-i18n="settings">Configurações</span></button>
+      <button id="btnLogout" class="btn ghost hidden" data-i18n="logout">Sair</button>
+    </div>
+  </div>
+
+  <!-- BRAND no login -->
+  <div id="brandLogin" class="brand"><h1>Duoplanning</h1></div>
+
+  <!-- Login -->
+  <section id="viewLogin" class="panel view show">
+    <h2 data-i18n="login_title">Entrar</h2>
+    <p class="meta" data-i18n="login_tip">Digite seu nome para começar sua trilha.</p>
+    <div class="row">
+      <input id="inpName" type="text" placeholder="Seu nome" style="min-width:260px" />
+      <button id="btnLogin" class="btn primary" data-i18n="start">Começar</button>
+    </div>
+    <div class="meta" style="margin-top:10px" data-i18n="login_hint">Você começará no nível Técnico e desbloqueia os demais por XP.</div>
+  </section>
+
+  <!-- Dashboard -->
+  <section id="viewDash" class="hidden view">
+    <div class="grid cols-3">
+      <div class="panel">
+        <h3 id="hello">Olá, Jogador</h3>
+        <div class="meta" id="roleMini">Técnico — Domina o básico do LPS</div>
+        <div style="margin:10px 0 6px;display:flex;justify-content:space-between;align-items:center">
+          <div class="meta"><span data-i18n="xp">XP</span>: <b id="xpNow">0</b> / <span id="xpGoal">1000</span></div>
+          <div class="pill"><span id="streak">🔥 0</span><span class="meta" data-i18n="streak">streak</span></div>
+        </div>
+        <div class="xpbar"><i id="xpBar" style="width:0%"></i></div>
+        <div class="row" style="margin-top:12px">
+          <div class="pill">⚡ <b id="energy">3</b> <span class="meta" data-i18n="energy">energia</span></div>
+          <div class="pill">🏆 <span data-i18n="local_rank">Rank local</span>: <b id="rankMe">#1</b></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 data-i18n="missions_hdr">Missões</h3>
+        <div class="row">
+          <div class="pill" id="missionDailyPill">🎯 <b data-i18n="daily">Dia</b>: <span data-i18n="daily_desc">Refaça um quiz 100% (+20XP)</span></div>
+          <div class="pill" id="missionWeekPill">📅 <b data-i18n="week">Semana</b>: <span data-i18n="week_desc">Concluir 3 módulos (+100XP)</span> <span class="meta" id="weekProg">(0/3)</span></div>
+        </div>
+        <div class="meta" style="margin-top:10px" data-i18n="week_progress">Progresso semanal:</div>
+        <div class="xpbar"><i id="weekBar" style="width:0%"></i></div>
+      </div>
+
+      <div class="panel">
+        <h3 data-i18n="rank_hdr">Ranking (local)</h3>
+        <div id="rankList" class="grid"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <h3 data-i18n="modules_hdr">Módulos</h3>
+        <div class="pill" id="levelNowPill">👷 Técnico</div>
+      </div>
+      <div class="meta" style="margin:6px 0" data-i18n="modules_hint">Módulos de outros níveis aparecem com cadeado 🔒. Ganhe XP para desbloquear!</div>
+      <div id="mods" class="grid cols-4" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Quiz Overlay -->
+<div id="quizOverlay" class="overlay">
+  <div class="sheet">
+    <div class="head">
+      <div id="quizTitle">Quiz</div>
+      <button id="btnCloseQuiz" class="btn ghost" data-i18n="close">Fechar</button>
+    </div>
+    <div class="body">
+      <div class="q" id="qText">Pergunta</div>
+      <div class="opts" id="qOpts"></div>
+      <div id="qExplain" class="exp hidden"></div>
+      <div class="foot">
+        <div class="meta"><span id="qNum">1</span>/10</div>
+        <button id="btnNext" class="btn primary" data-i18n="next">Avançar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Config Overlay (agora com Idioma) -->
+<div id="cfgOverlay" class="overlay">
+  <div class="sheet">
+    <div class="head">
+      <div>⚙️ <b data-i18n="settings">Configurações</b></div>
+      <button id="btnCloseCfg" class="btn ghost" data-i18n="close">Fechar</button>
+    </div>
+    <div class="body">
+      <div class="grid cols-3">
+        <div class="panel">
+          <h3 data-i18n="appearance">Aparência</h3>
+          <div class="row" style="margin-top:8px">
+            <label class="meta" for="selTheme" data-i18n="theme">Tema</label>
+            <select id="selTheme">
+              <option value="dark" data-i18n="theme_dark">Escuro</option>
+              <option value="light" data-i18n="theme_light">Claro</option>
+              <option value="auto" data-i18n="theme_auto">Automático</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel">
+          <h3 data-i18n="language">Idioma</h3>
+          <div class="row" style="margin-top:8px">
+            <select id="langSel">
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel">
+          <h3 data-i18n="effects">Efeitos</h3>
+          <div class="row" style="margin-top:8px">
+            <label><input type="checkbox" id="chkSound" /> <span class="meta" data-i18n="sound">Som de vitória</span></label>
+          </div>
+          <div class="row">
+            <label><input type="checkbox" id="chkConfetti" /> <span class="meta" data-i18n="confetti">Confete</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:12px">
+        <h3 data-i18n="danger_zone">Zona de risco</h3>
+        <button id="btnReset" class="btn" style="margin-top:8px;background:#1f2937" data-i18n="reset">Resetar progresso</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">Salvo</div>
+
+<script>
+// ====== I18N (PT/EN/ES) ======
+const I18N = {
+  pt: {login_title:"Entrar", login_tip:"Digite seu nome para começar sua trilha.", login_hint:"Você começará no nível Técnico e desbloqueia os demais por XP.", start:"Começar", xp:"XP", streak:"streak", energy:"energia", local_rank:"Rank local", missions_hdr:"Missões", daily:"Dia", daily_desc:"Refaça um quiz 100% (+20XP)", week:"Semana", week_desc:"Concluir 3 módulos (+100XP)", week_progress:"Progresso semanal:", rank_hdr:"Ranking (local)", modules_hdr:"Módulos", modules_hint:"Módulos de outros níveis aparecem com cadeado 🔒. Ganhe XP para desbloquear!", close:"Fechar", next:"Avançar", welcome:"Bem-vindo(a)!", saved:"Salvo", module_done:"Módulo #{id} concluído: {score}/10", mission_daily_done:"Missão do Dia concluída! +20XP", mission_week_done:"Missão da Semana concluída! +100XP", settings:"Configurações", appearance:"Aparência", theme:"Tema", theme_dark:"Escuro", theme_light:"Claro", theme_auto:"Automático", language:"Idioma", effects:"Efeitos", sound:"Som de vitória", confetti:"Confete", danger_zone:"Zona de risco", reset:"Resetar progresso", logout:"Sair"},
+  en: {login_title:"Sign in", login_tip:"Type your name to start your path.", login_hint:"You will start at the Technician level and unlock the others with XP.", start:"Start", xp:"XP", streak:"streak", energy:"energy", local_rank:"Local rank", missions_hdr:"Missions", daily:"Daily", daily_desc:"Retake a quiz with 100% (+20XP)", week:"Weekly", week_desc:"Complete 3 modules (+100XP)", week_progress:"Weekly progress:", rank_hdr:"Ranking (local)", modules_hdr:"Modules", modules_hint:"Modules from other levels show a 🔒. Earn XP to unlock!", close:"Close", next:"Next", welcome:"Welcome!", saved:"Saved", module_done:"Module #{id} finished: {score}/10", mission_daily_done:"Daily Mission completed! +20XP", mission_week_done:"Weekly Mission completed! +100XP", settings:"Settings", appearance:"Appearance", theme:"Theme", theme_dark:"Dark", theme_light:"Light", theme_auto:"Auto", language:"Language", effects:"Effects", sound:"Victory sound", confetti:"Confetti", danger_zone:"Danger zone", reset:"Reset progress", logout:"Logout"},
+  es: {login_title:"Iniciar sesión", login_tip:"Escribe tu nombre para comenzar tu ruta.", login_hint:"Comenzarás en el nivel Técnico y desbloquearás los demás con XP.", start:"Comenzar", xp:"XP", streak:"racha", energy:"energía", local_rank:"Ranking local", missions_hdr:"Misiones", daily:"Día", daily_desc:"Repite un quiz con 100% (+20XP)", week:"Semana", week_desc:"Completar 3 módulos (+100XP)", week_progress:"Progreso semanal:", rank_hdr:"Ranking (local)", modules_hdr:"Módulos", modules_hint:"Los módulos de otros niveles se muestran con candado 🔒. ¡Gana XP para desbloquearlos!", close:"Cerrar", next:"Siguiente", welcome:"¡Bienvenido(a)!", saved:"Guardado", module_done:"Módulo #{id} completado: {score}/10", mission_daily_done:"¡Misión diaria completada! +20XP", mission_week_done:"¡Misión semanal completada! +100XP", settings:"Configuración", appearance:"Apariencia", theme:"Tema", theme_dark:"Oscuro", theme_light:"Claro", theme_auto:"Automático", language:"Idioma", effects:"Efectos", sound:"Sonido de victoria", confetti:"Confeti", danger_zone:"Zona de riesgo", reset:"Restablecer progreso", logout:"Salir"}
+};
+let lang = localStorage.getItem("duoplanning.lang") || "pt";
+function t(key, vars={}){
+  const dict = I18N[lang] || I18N.pt; let s = dict[key] || key;
+  Object.entries(vars).forEach(([k,v])=>{ s = s.replaceAll("{"+k+"}", v); });
+  return s;
+}
+function applyI18n() {
+  const dict = I18N[lang] || I18N.pt;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (dict[key]) el.textContent = dict[key];
+  });
+  const ls = document.getElementById("langSel"); if (ls) ls.value = lang;
+  document.documentElement.lang = lang === "pt" ? "pt-BR" : (lang === "es" ? "es-ES" : "en-US");
+}
+
+// ====== Settings (tema/som/confete) ======
+const SETTINGS_KEY = "duoplanning.v42.settings";
+let Settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || { theme:"dark", sound:true, confetti:true };
+function saveSettings(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(Settings)); }
+function applyTheme(){
+  let theme = Settings.theme;
+  if (theme==="auto"){ const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches; theme = prefersLight?"light":"dark"; }
+  document.documentElement.setAttribute("data-theme", theme==="light"?"light":"dark");
+}
+
+// ====== Data ======
+const LEVELS=[
+  {id:"Tecnico",name:"Técnico",icon:"👷‍♂️",minXP:0,nextXP:1000,desc:"Domina o básico do LPS"},
+  {id:"Analista",name:"Analista",icon:"👨‍💻",minXP:1000,nextXP:3000,desc:"Organiza cronogramas e indicadores"},
+  {id:"Especialista",name:"Especialista",icon:"👨‍🔧",minXP:3000,nextXP:6000,desc:"Integra Engenharia e Obra"},
+  {id:"Gerente",name:"Gerente/Diretor",icon:"👔",minXP:6000,nextXP:10000,desc:"Lidera com Lean e Performance"},
+  {id:"Visionario",name:"Visionário",icon:"🔮",minXP:10000,nextXP:Infinity,desc:"Inova com IA, BIM e 5D"}
+];
+const XP_PER_LEVEL={Tecnico:30,Analista:40,Especialista:50,Gerente:60,Visionario:80};
+const MODULES=[
+  {id:1,nivel:"Técnico",titulo:"LPS – Last Planner System"},
+  {id:2,nivel:"Técnico",titulo:"Cronograma"},
+  {id:3,nivel:"Técnico",titulo:"Programação Semanal (WWP)"},
+  {id:4,nivel:"Técnico",titulo:"EAP / AWP"},
+  {id:5,nivel:"Técnico",titulo:"Folha Tarefa"},
+  {id:6,nivel:"Técnico",titulo:"Produtos Notáveis"},
+  {id:7,nivel:"Técnico",titulo:"Painel de Bordo"},
+  {id:8,nivel:"Técnico",titulo:"Rundown / Curva S"},
+  {id:9,nivel:"Técnico",titulo:"Índices e Produtividade"},
+  {id:10,nivel:"Técnico",titulo:"Reuniões Lean"},
+  {id:11,nivel:"Técnico",titulo:"Restrições"},
+  {id:12,nivel:"Técnico",titulo:"Waste Time"},
+
+  {id:13,nivel:"Analista",titulo:"Linha de Produção na Obra — Estratégias da Indústria no Campo"},
+  {id:14,nivel:"Analista",titulo:"Produtos Notáveis na Prática — Super Módulo"},
+  {id:15,nivel:"Analista",titulo:"Folha-Tarefa & Aderência Diária (PPC)"},
+  {id:16,nivel:"Analista",titulo:"PPC, ICP e IPP — Diferenças e Aplicações"},
+  {id:17,nivel:"Analista",titulo:"Programação Semanal (WWP) Avançada"},
+  {id:18,nivel:"Analista",titulo:"Gestão de Restrições Avançada"},
+  {id:19,nivel:"Analista",titulo:"Painel de Bordo — KPIs e Decisão"},
+  {id:20,nivel:"Analista",titulo:"Curva S & Rundown — Leitura e Ação"},
+  {id:21,nivel:"Analista",titulo:"Linha de Balanço e Takt Time"},
+  {id:22,nivel:"Analista",titulo:"Controle de Materiais — Tele Materiais"},
+
+  {id:23,nivel:"Especialista",titulo:"Integração Engenharia–Planejamento"},
+  {id:24,nivel:"Especialista",titulo:"AWP em Campo — EWP/CWP/IWP"},
+  {id:25,nivel:"Especialista",titulo:"Cronograma Físico-Financeiro (Recursos & Custos)"},
+  {id:26,nivel:"Especialista",titulo:"Medição e Critérios — Pesos e Avanço"},
+  {id:27,nivel:"Especialista",titulo:"Comissionamento — Planilha Gerencial"},
+  {id:28,nivel:"Especialista",titulo:"Programação por Índices e Efetivo"},
+  {id:29,nivel:"Especialista",titulo:"Gestão Visual de Obra (Quadros)"},
+  {id:30,nivel:"Especialista",titulo:"Içamentos com Guindaste — Planejamento e Interferências"},
+  {id:31,nivel:"Especialista",titulo:"Transferência de Obra — Entrada Rápida (Situações Reais)"},
+  {id:32,nivel:"Especialista",titulo:"SIMOVA — Rotinas de Campo e Integração"},
+
+  {id:33,nivel:"Gerente/Diretor",titulo:"Liderança Lean & Performance"},
+  {id:34,nivel:"Gerente/Diretor",titulo:"Curva S e Rundown: Visualizando a Performance"},
+  {id:35,nivel:"Gerente/Diretor",titulo:"AWP com Cronograma Integrado — Recursos e Custos"},
+  {id:36,nivel:"Gerente/Diretor",titulo:"Gestão de Portfólio e Prioridades"},
+  {id:37,nivel:"Gerente/Diretor",titulo:"Estratégias de Contratação e Medição"},
+  {id:38,nivel:"Gerente/Diretor",titulo:"Obeya — Governança de Reuniões e Decisões"},
+
+  {id:39,nivel:"Visionário",titulo:"BIM 4D/5D — Planejamento Integrado"},
+  {id:40,nivel:"Visionário",titulo:"IA & Power BI — Simulações em Tempo Real"}
+];
+const QUIZZES={};
+QUIZZES[1]=[{q:"Qual é o objetivo principal do LPS?",opts:["Conectar planejamento à execução com compromisso real da equipe","Somente registrar tarefas no cronograma","Delegar o planejamento ao PMO"],ok:0,exp:"LPS alinha plano e execução por meio de compromissos confiáveis e remoção de restrições."},{q:"PPC (Percent Plan Complete) mede:",opts:["Aderência ao plano semanal","Produtividade de HH","Acurácia de custos"],ok:0,exp:"PPC é % de tarefas planejadas concluídas na semana."},{q:"No LPS, as reuniões de WWP servem para:",opts:["Planejar tarefas executáveis e tratar restrições","Aprovar aditivos","Revisar orçamento anual"],ok:0,exp:"WWP prepara o trabalho removendo restrições e negociando compromissos."},{q:"Pull Planning é:",opts:["Planejar de trás pra frente por marcos","Planejar só com o passado","Planejar por recursos financeiros"],ok:0,exp:"Inicia dos marcos e puxa entregas necessárias para atingi-los."},{q:"Indicador de causa de não cumprimento:",opts:["Motivos de falha (causas)","Horas extras","Volume de compras"],ok:0,exp:"Registrar causas (material, acesso, projeto, clima...) fecha o ciclo PDCA."},{q:"Para elevar o PPC de forma sustentável:",opts:["Tratar restrições no lookahead","Aumentar pressão por meta","Reduzir escopo sem registrar"],ok:0,exp:"Olhar à frente e remover restrições aumenta confiabilidade."},{q:"No LPS, ‘tarefa pronta para executar’ significa:",opts:["Sem restrições de material, projeto, frente e segurança","Apenas com material no canteiro","Somente com equipe alocada"],ok:0,exp:"Critérios de prontidão devem ser atendidos antes do compromisso."},{q:"O papel da Supervisão no LPS:",opts:["Assumir compromissos e gerir variações","Somente reportar ao planejamento","Aprovar notas fiscais"],ok:0,exp:"Compromisso é de quem executa; supervisão é chave."},{q:"ICP e IPP estão relacionados a:",opts:["Confiabilidade do plano e prontidão","Custo unitário","Produtividade de guindaste"],ok:0,exp:"ICP mede causas de não cumprimento; IPP mede prontidão."},{q:"Resultado esperado com LPS maduro:",opts:["Menos variabilidade e mais fluxo","Mais burocracia","Menos transparência"],ok:0,exp:"LPS estabiliza o sistema e aumenta previsibilidade."}];
+QUIZZES[2]=[{q:"Cronograma nível 1-2 normalmente representa:",opts:["Macro fases e marcos","Recursos hora a hora","Ordens de compra"],ok:0,exp:"Níveis altos mostram visão executiva de fases e marcos."},{q:"Caminho Crítico é:",opts:["Sequência de atividades que define a duração do projeto","Atividades com maior custo","Tarefas com maior HH"],ok:0,exp:"Atraso no caminho crítico atrasa o fim."},{q:"Relacionamento mais usado em obra:",opts:["Finish-to-Start (FS)","Start-to-Start (SS)","Finish-to-Finish (FF)"],ok:0,exp:"FS garante ordem lógica básica entre tarefas."},{q:"Calendários no cronograma servem para:",opts:["Regras de trabalho (turnos/feriados)","Cálculo de custo","Medição de qualidade"],ok:0,exp:"Fundamentais para duração realista."},{q:"Baseline é:",opts:["Linha de referência de prazo/custo","Relatório diário","Matriz de riscos"],ok:0,exp:"Permite medir desvios do plano aprovado."},{q:"Nivelamento de recursos visa:",opts:["Suavizar picos de alocação","Reduzir custo por si só","Eliminar caminho crítico"],ok:0,exp:"Evita sobrecarga e ociosidade."},{q:"Lead e Lag significam:",opts:["Adiantamento e atraso entre tarefas","Tipos de marcos","Modos de calendário"],ok:0,exp:"Ajustam a sobreposição/espera entre atividades."},{q:"WBS (EAP) no cronograma:",opts:["Estrutura hierárquica do escopo","Lista de materiais","Fluxo de caixa"],ok:0,exp:"A base do sequenciamento e medição."},{q:"Marco (milestone) possui:",opts:["Duração zero","Duração fixa de 1 dia","HH máximo"],ok:0,exp:"Marcos não consomem duração."},{q:"No controle semanal, o cronograma deve:",opts:["Refletir a realidade rapidamente","Ser alterado mensalmente","Permanecer estático"],ok:0,exp:"Atualização ágil aumenta precisão da gestão."}];
+QUIZZES[3]=[{q:"WWP define:",opts:["Plano executável da semana","Plano financeiro do mês","Plano de compras do trimestre"],ok:0,exp:"WWP detalha tarefas que atenderam critérios de prontidão."},{q:"Para montar WWP, é essencial:",opts:["Eng. liberada, materiais e frente de trabalho","Apenas equipe","Apenas guindaste"],ok:0,exp:"Sem restrições pendentes."},{q:"Sequenciamento semanal deve considerar:",opts:["Interferências e segurança","Somente distância física","Somente custo"],ok:0,exp:"Evitar atividades sobrepostas inseguras."},{q:"PPC semanal serve para:",opts:["Avaliar aderência e causas de falha","Medir custo","Medir satisfação"],ok:0,exp:"Permite aprendizado e ajuste."},{q:"Lookahead típico:",opts:["2–6 semanas à frente","1 dia","1 ano"],ok:0,exp:"Janela para remover restrições."},{q:"Ao mudar prioridade no meio da semana:",opts:["Replanejar com equipe envolvida","Deixar como está","Apagar tarefas"],ok:0,exp:"Replanejamento colaborativo mantém compromisso."},{q:"Entrega de materiais no WWP:",opts:["JIT (no tempo certo) quando possível","Sempre antecipada demais","Sem coordenação"],ok:0,exp:"Evita estoque e espera."},{q:"Critério de pronto:",opts:["Check de segurança, projeto, material, acesso","Apenas segurança","Apenas projeto"],ok:0,exp:"Checklist reduz variabilidade."},{q:"Quadro visual semanal ajuda a:",opts:["Transparência e foco","Aumentar burocracia","Diminuir comunicação"],ok:0,exp:"Suporte à gestão à vista."},{q:"Reunião diária de 15 min na semana:",opts:["Alinhar desvios e riscos","Aprovar folhas de pagamento","Debater orçamento anual"],ok:0,exp:"Ritmo curto fecha o ciclo PDCA."}];
+QUIZZES[4]=[{q:"Qual é o principal objetivo da EAP?",opts:["Estruturar o escopo em partes controláveis","Listar materiais","Criar índices de produtividade"],ok:0,exp:"A EAP quebra o escopo em pacotes gerenciáveis."},{q:"No AWP, o que representa o CWP?",opts:["Construction Work Package","Contract Work Package","Cost Work Package"],ok:0,exp:"CWP = pacote de trabalho de construção."},{type:"order",q:"Qual é a sequência correta entre os pacotes AWP?",items:["EWP","CWP","IWP"],correctOrder:["EWP","CWP","IWP"],exp:"Engenharia → Construção → Instalação."},{q:"Quem normalmente detalha o IWP?",opts:["Planejamento + Supervisão de Campo","Financeiro","Segurança"],ok:0,exp:"Planejamento com a supervisão definem escopo executável."},{q:"A EAP contribui para:",opts:["Rastreabilidade e controle","Aumentar burocracia","Dificultar medições"],ok:0,exp:"Padroniza controle e integra com índices/custos."},{q:"Até que nível a EAP deve ir?",opts:["Até suportar controle de prazo e custo","Sempre até 7 níveis","Apenas 2 níveis"],ok:0,exp:"Profundidade suficiente para gestão eficaz."},{q:"Benefício de liberação progressiva no AWP:",opts:["Fluxo contínuo de frentes","Mais retrabalho","Menos visibilidade"],ok:0,exp:"Libera áreas/zonas por marcos de engenharia/suprimentos."},{q:"Quando o AWP deve começar a ser aplicado?",opts:["No planejamento da engenharia","Somente na obra","Após o comissionamento"],ok:0,exp:"Começa na engenharia para orquestrar o fluxo fim-a-fim."},{q:"O IWP deve conter:",opts:["Instruções, materiais, desenhos e requisitos de segurança","Apenas custo","Somente cronograma"],ok:0,exp:"Conteúdo completo para execução segura e rastreável."},{q:"Uma boa EAP facilita a integração com:",opts:["Cronograma, índices e medições","Somente planilhas financeiras","Apenas reuniões"],ok:0,exp:"Conecta planejamento, custos e físico."}];
+QUIZZES[5]=[{q:"Folha-Tarefa serve para:",opts:["Registrar aderência diária e bloqueios","Emitir pedido de compra","Apresentar orçamento ao cliente"],ok:0,exp:"Base para PPC, causas e produtividade."},{q:"Campo essencial na Folha-Tarefa:",opts:["Equipe, HH, atividade e status","Número de nota fiscal","Código do fornecedor"],ok:0,exp:"Garante rastreio e medição diária."},{q:"Aderência diária idealmente é:",opts:[">= 85% com causas mapeadas","50%","100% sem explicar falhas"],ok:0,exp:"Mais que a meta, importa entender desvios."},{q:"A Folha-Tarefa conecta-se com:",opts:["WWP/PPC e Painel de Bordo","Somente RH","Somente compras"],ok:0,exp:"Integra execução com indicadores."},{q:"‘Tarefa concluída’ significa:",opts:["Atende critérios de qualidade e segurança","Entrada no sistema","Guincho liberado"],ok:0,exp:"Fechamento requer critérios objetivos."},{q:"Para robustez, a Folha-Tarefa deve:",opts:["Ter campos padronizados e explicativos","Ser livre e sem padrão","Ser textual somente"],ok:0,exp:"Padronização evita ambiguidade."},{q:"Bloqueios recorrentes devem gerar:",opts:["Plano de ação e dono","Arquivo morto","Apenas comentário"],ok:0,exp:"Fechar o loop com responsáveis e prazo."},{q:"Quando registrar a tarefa:",opts:["No dia, durante ou ao final do turno","Somente no fim da semana","Somente no início do projeto"],ok:0,exp:"Timeliness aumenta qualidade do dado."},{q:"Medição HH Real vem de:",opts:["Apontamentos confiáveis","Estimativas mensais","Cálculo fixo"],ok:0,exp:"Apontamento de campo é base de verdade."},{q:"Dados da Folha-Tarefa alimentam:",opts:["Curva S e produtividade","Apenas folha de pagamento","Apenas relatório fotográfico"],ok:0,exp:"Transformam execução em indicador."}];
+QUIZZES[6]=[{q:"Produtos Notáveis é:",opts:["Matriz de índices por disciplina/serviço","Lista de compras","Diário de obra"],ok:0,exp:"Define HH/ton, HH/m, etc., por item."},{q:"Exemplo de índice real:",opts:["200 hh/ton para tubulação","20 kg/h para cimento","10 m³/h para concreto estrutural"],ok:0,exp:"Índices reais alimentam planejamento."},{q:"Para cabos, um índice comum é:",opts:["≈0,25 hh/m","5 hh/m","2 hh/m"],ok:0,exp:"Usado para planejar e medir produtividade."},{q:"Planilha deve conter:",opts:["Previsto vs Real e variação","Somente previsto","Somente real"],ok:0,exp:"Permite análise de desempenho."},{q:"Índices calibram:",opts:["Planejamento, alocação e metas","Somente compras","Somente RH"],ok:0,exp:"Transformam engenharia em horas e custo."},{q:"Desvio negativo indica:",opts:["Produtividade abaixo do esperado","Adiantamento","Erro de medição do cliente"],ok:0,exp:"Ação corretiva e causa-raiz."},{q:"Para simular cenários:",opts:["Use filtros por tag/área/serviço","Apenas total do projeto","Apenas HH médio"],ok:0,exp:"Granularidade dá precisão."},{q:"Índices devem ser:",opts:["Atualizados e validados em campo","Fixos para sempre","Secretos"],ok:0,exp:"Melhoram com aprendizado."},{q:"Integração com Painel:",opts:["KPIs de variação e hit-rate","Apenas fotos","Apenas custos"],ok:0,exp:"Torna a gestão visual acionável."},{q:"Ao revisar índices:",opts:["Considere mix de equipes e frentes","Ignore clima","Ignore logística"],ok:0,exp:"Contexto muda produtividade."}];
+QUIZZES[7]=[{q:"Painel de Bordo bom mostra:",opts:["KPIs claros e atualizados","Somente planilhas","Textos longos"],ok:0,exp:"Foco em decisões rápidas."},{q:"KPI de produção típico:",opts:["% avanço, variação p.p., PPC","Taxa de câmbio","Rotatividade anual"],ok:0,exp:"Reflete ritmo e aderência."},{q:"Atualização do painel:",opts:["Semanal como padrão","Anual","A cada 6 meses"],ok:0,exp:"Alimenta reação rápida."},{q:"Alertas visuais servem para:",opts:["Chamar atenção a desvios","Enfeitar","Substituir dados"],ok:0,exp:"Prioriza a ação."},{q:"Boa prática de dashboard:",opts:["Fonte única de verdade (SSOT)","Várias versões paralelas","Planilhas isoladas"],ok:0,exp:"Evitar divergências."},{q:"Para decisões de curto prazo:",opts:["KPIs de fluxo e gargalos","Somente custo acumulado","Somente satisfação anual"],ok:0,exp:"Mostra onde atacar."},{q:"Drill-down é:",opts:["Explorar detalhe por disciplina/área","Exportar para PDF","Apagar histórico"],ok:0,exp:"Permite investigação rápida."},{q:"Painel conecta-se a:",opts:["Folha-Tarefa, WWP, Curva S","Somente RH","Somente compras"],ok:0,exp:"Integra execução e controle."},{q:"Definição de meta de PPC:",opts:["Clara, com responsável e prazo","'Melhorar PPC um dia'","Sem dono"],ok:0,exp:"Meta sem dono não anda."},{q:"Layout eficaz usa:",opts:["Poucas cores e hierarquia visual","Muitas cores fortes","Sombras exageradas"],ok:0,exp:"Design ajuda a leitura."}];
+QUIZZES[8]=[{q:"O objetivo do Rundown é:",opts:["Comparar avanço semanal planejado x realizado","Registrar custos","Organizar equipes"],ok:0,exp:"Mostra ritmo semanal e alimenta a Curva S."},{q:"Base de cálculo da Curva S:",opts:["Pesos físicos (HH, ton, m)","Somente custo","Horas extras"],ok:0,exp:"Pesos físicos por atividade."},{type:"calc",q:"PRÁTICA — Real 35% e Plano 40%: desvio =",answer:-5,tolerance:0.5,unit:"%",exp:"Desvio = Real − Plano = −5 p.p. (atraso)."},{q:"Frequência típica do Rundown:",opts:["Semanal","Mensal","Anual"],ok:0,exp:"Semanal para reação rápida."},{q:"Vantagem da Curva S:",opts:["Visualizar tendências e desvios","Calcular HH/dia","Organizar contratos"],ok:0,exp:"Evidencia aderência ao plano."},{type:"calc",q:"Se na semana o Plano=8% e o Real=10%, variação semanal =",answer:2,tolerance:0.2,unit:"p.p.",exp:"10 − 8 = +2 p.p. (adiantado)."},{q:"Para Curva S confiável, é essencial:",opts:["Critérios de medição claros","Somente horas apontadas","Apenas quantidade de equipes"],ok:0,exp:"Defina pesos, marcos e periodicidade."},{type:"text",q:"PRÁTICA — Diga um motivo típico para desvio negativo:",answerText:["falta de material","restrição","atraso de projeto","acesso","gargalo"],exp:"Restrição não tratada é causa comum."},{type:"order",q:"Ordem lógica de leitura:",items:["Rundown semanal","Curva S acumulada","Plano de ação"],correctOrder:["Rundown semanal","Curva S acumulada","Plano de ação"],exp:"Ritmo → tendência → ação."},{q:"Indicador derivado útil:",opts:["Desvio acumulado p.p.","Nº de e-mails","Horas de reunião"],ok:0,exp:"Mostra magnitude do atraso/adianto."}];
+QUIZZES[9]=[{q:"Produtividade é:",opts:["Quantidade produzida por HH","HH por custo","Custo por item"],ok:0,exp:"Base para metas e comparações."},{q:"Para comparar equipes, padronize:",opts:["Unidades e critérios de medição","Somente nomes das equipes","Foto do serviço"],ok:0,exp:"Sem padronização não há análise."},{q:"Índice 200 hh/ton significa:",opts:["Horas para montar 1 tonelada","Toneladas por hora","Custo por tonelada"],ok:0,exp:"Converte escopo em HH planejado."},{q:"Ao cair produtividade:",opts:["Investigue causas-raiz (gargalo, logística, clima...)","Ignore porque recupera depois","Cobre metas sem dados"],ok:0,exp:"Análise técnica orienta ação."},{q:"Medida rolling semanal ajuda a:",opts:["Suavizar ruído e ver tendência","Aumentar ruído","Esconder desvios"],ok:0,exp:"Média móvel estabiliza leitura."},{q:"Benchmark interno deve:",opts:["Comparar áreas e frentes similares","Misturar tudo","Ser anual apenas"],ok:0,exp:"Comparável é o que importa."},{q:"Índices devem ser usados para:",opts:["Planejar e medir, não punir","Punir","Arquivar"],ok:0,exp:"Evita jogo de números."},{q:"Para cabos, rendimento típico:",opts:["0,25 hh/m (exemplo)","2 hh/m","5 hh/m"],ok:0,exp:"Exemplo usual em elétrica."},{q:"Visualização ideal:",opts:["Run charts e dispersão","Texto corrido","Pizza sempre"],ok:0,exp:"Mostram relação e tendência."},{q:"Meta deve ser:",opts:["Alcançável e negociada com execução","Definida isoladamente","Secreta"],ok:0,exp:"Acordo aumenta adesão."}];
+QUIZZES[10]=[{q:"Reunião diária (daily) ideal dura:",opts:["10–15 minutos","60 minutos","90 minutos"],ok:0,exp:"Rápida, foco no desvio e ação."},{q:"Obeya é:",opts:["Sala/ritual de gestão com dados visuais","Software de cronograma","Ferramenta de compras"],ok:0,exp:"Transparência e ritmo de decisão."},{q:"Em reuniões Lean, cada ação deve ter:",opts:["Dono e prazo","Somente descrição","Só prioridade"],ok:0,exp:"Sem dono não sai do papel."},{q:"Ritmo de reuniões recomendado:",opts:["Diárias, semanais e mensais com pauta definida","Somente mensais","Quando der"],ok:0,exp:"Cadência gera previsibilidade."},{q:"Pauta de WWP inclui:",opts:["Remoção de restrições e compromisso","Aprovação de faturas","Planejamento anual"],ok:0,exp:"Foco na prontidão e compromisso."},{q:"Quadro de ações deve mostrar:",opts:["Status, dono, prazo e impacto","Somente título","Somente data"],ok:0,exp:"Gestão à vista acelera execução."},{q:"Reunião eficaz começa com:",opts:["Objetivo claro e dados atualizados","Check-in social longo","Slides extensos"],ok:0,exp:"Clareza e dados sustentam decisões."},{q:"Ao surgir conflito de prioridade:",opts:["Negociar com base em marcos e restrições","Impor pela hierarquia","Ignorar"],ok:0,exp:"Fluxo global > otimização local."},{q:"Tempo de reunião deve ser usado para:",opts:["Decidir e remover impedimentos","Atualizar status manual","Contar histórias"],ok:0,exp:"Decisão e desbloqueio criam valor."},{q:"Follow-up pós reunião:",opts:["Resumo + checklist de ações","Somente ata técnica","Nada é necessário"],ok:0,exp:"Garante accountability."}];
+QUIZZES[11]=[{q:"Restrição é:",opts:["Qualquer fator que impede execução","Somente falta de material","Somente chuva"],ok:0,exp:"Pode ser projeto, acesso, segurança, liberação etc."},{q:"Planilha de restrições deve ter:",opts:["Descrição, responsável e prazo","Somente descrição","Somente data"],ok:0,exp:"Garante ciclo de remoção."},{q:"Fonte típica de restrições:",opts:["Engenharia, suprimentos e acesso","Sorriso da equipe","Escritório central"],ok:0,exp:"Principais gargalos do campo."},{q:"Lookahead serve para:",opts:["Antecipar e tratar restrições futuras","Gerar notas fiscais","Planejar férias"],ok:0,exp:"Prepara a execução."},{q:"Sem dono definido:",opts:["Restrição tende a permanecer","Resolve mais rápido","Fica mais barata"],ok:0,exp:"Responsabilização acelera."},{q:"Sinal verde no quadro significa:",opts:["Restrição removida","Nova restrição","Ação atrasada"],ok:0,exp:"Semáforo visual simples."},{q:"Causa raiz ajuda a:",opts:["Evitar recorrência","Culpar pessoas","Eliminar relatórios"],ok:0,exp:"Aprendizado organizacional."},{q:"Integração com WWP:",opts:["Tarefas só entram 'prontas' (sem restrições)","Entram mesmo com bloqueio","Não se relacionam"],ok:0,exp:"Prontidão é pré-requisito."},{q:"Priorizar restrições por:",opts:["Impacto no caminho crítico/ritmo","Ordem alfabética","Quem grita mais"],ok:0,exp:"Ataca o que mais afeta o fluxo."},{q:"Ferramenta útil para restrições:",opts:["Quadro Kanban/semáforo","Bate-papo informal","E-mail solto"],ok:0,exp:"Gestão visual acelera."}];
+QUIZZES[12]=[{q:"‘Waste Time’ no canteiro é:",opts:["Tempo perdido por falta de planejamento/logística","Tempo de descanso legal","Tempo de almoço"],ok:0,exp:"Reduzir WT aumenta produtividade."},{q:"Exemplo de WT:",opts:["Equipe aguardando material/liberação","Execução com todas frentes prontas","Tarefa finalizada no prazo"],ok:0,exp:"Aguardo é perda de fluxo."},{q:"Ferramenta para reduzir WT:",opts:["Tele Materiais / gestão de entregas","Apenas cobrança","E-mail em massa"],ok:0,exp:"Sistema puxa materiais no tempo certo."},{q:"Mapa de fluxo ajuda a:",opts:["Identificar gargalos e esperas","Criar mais passos","Otimizar localmente"],ok:0,exp:"Visão ponta a ponta."},{q:"Medição de WT pode usar:",opts:["% do tempo útil vs parado","Somente HH total","Somente custo"],ok:0,exp:"Quantificar para reduzir."},{q:"Layout de canteiro impacta:",opts:["Logística e WT","Somente segurança","Nada"],ok:0,exp:"Fluxos menores = menos espera."},{q:"Padronização (5S) reduz:",opts:["Procuras e retrabalhos","Custo fixo","Tempo de reunião"],ok:0,exp:"Organização elimina perda."},{q:"Planejamento de içamento evita:",opts:["Interferência e espera de áreas vizinhas","Qualidade","Contrato"],ok:0,exp:"Evitar bloqueios por sobreposição."},{q:"Para sustentar ganhos:",opts:["Rotina de revisão de WT e ações","Somente campanha única","Ignorar dados"],ok:0,exp:"Ciclo contínuo de melhoria."},{q:"Indicador útil de WT:",opts:["Tempo perdido por causa e área","Quantidade de e-mails","Nº de reuniões"],ok:0,exp:"Direciona ataque aos maiores vilões."}];
+const QUIZ_FALLBACK=[
+  {q:"Pergunta genérica 1",opts:["A","B","C"],ok:0,exp:"Explicação."},
+  {q:"Pergunta genérica 2",opts:["A","B","C"],ok:1,exp:"Explicação."},
+  {q:"Pergunta genérica 3",opts:["A","B","C"],ok:2,exp:"Explicação."},
+  {q:"Pergunta genérica 4",opts:["A","B","C"],ok:0,exp:"Explicação."},
+  {q:"Pergunta genérica 5",opts:["A","B","C"],ok:1,exp:"Explicação."},
+  {q:"Pergunta genérica 6",opts:["A","B","C"],ok:0,exp:"Explicação."},
+  {q:"Pergunta genérica 7",opts:["A","B","C"],ok:2,exp:"Explicação."},
+  {q:"Pergunta genérica 8",opts:["A","B","C"],ok:1,exp:"Explicação."},
+  {q:"Pergunta genérica 9",opts:["A","B","C"],ok:2,exp:"Explicação."},
+  {q:"Pergunta genérica 10",opts:["A","B","C"],ok:0,exp:"Explicação."},
+];
+
+// ====== State ======
+const STATE_KEY="duoplanning.v42.state";
+let S=JSON.parse(localStorage.getItem(STATE_KEY) || "null")||{name:"",xp:0,energy:3,levelId:"Tecnico",streak:0,lastLoginDay:"",cleared:{},week:{startIso:"",modulesDone:0},dailyDoneOn:"",rank:[{name:"Você",xp:0},{name:"Alice",xp:560},{name:"Bruno",xp:320}]};
+function save(){ localStorage.setItem(STATE_KEY, JSON.stringify(S)); }
+
+
+// ====== Online Leaderboard (Firebase Firestore) ======
+// 1) Preencha sua configuração abaixo (Projeto Firebase → Config Web App)
+const FB_CONFIG = {
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE_YOUR_AUTH_DOMAIN",
+  projectId: "PASTE_YOUR_PROJECT_ID",
+  // opcional: storageBucket, messagingSenderId, appId
+};
+let Online = {enabled:false, ready:false, last:[], unsub:null};
+// ====== Online init with Anonymous Auth ======
+Online.status = "offline"; // 'online' | 'offline' | 'loading'
+function updateRankHeader(){
+  const hdr = document.querySelector('[data-i18n="rank_hdr"]');
+  if (!hdr) return;
+  if (Online.enabled && Online.ready) hdr.textContent = (lang==='en'?'Ranking (online)':'Ranking (online)');
+  else if (Online.enabled && !Online.ready) hdr.textContent = (lang==='en'?'Ranking (loading...)':'Ranking (carregando...)');
+  else hdr.textContent = (lang==='en'?'Ranking (local)':'Ranking (local)');
+}
+function OnlineInit(){
+  if (!Online.enabled || Online.ready) { updateRankHeader(); return; }
+  try{
+    Online.status = "loading";
+    updateRankHeader();
+    firebase.auth().onAuthStateChanged((user)=>{
+      if (user) {
+        Online.user = user;
+        onlineUpsertScore();
+        onlineSubscribeLeaderboard(20);
+      } else {
+        firebase.auth().signInAnonymously().catch(e=>console.warn('Anon auth error', e));
+      }
+    });
+    // kickoff auth if not already
+    if (!firebase.auth().currentUser) firebase.auth().signInAnonymously().catch(()=>{});
+  }catch(e){ console.warn("OnlineInit error:", e); }
+}
+
+try{
+  if (FB_CONFIG.apiKey && FB_CONFIG.projectId) {
+    firebase.initializeApp(FB_CONFIG);
+    Online.db = firebase.firestore();
+    Online.enabled = true;
+  }
+}catch(e){ console.warn("Firebase init error:", e); Online.enabled=false; }
+
+function uid(){
+  const KEY="duoplanning.uid";
+  let id=localStorage.getItem(KEY);
+  if(!id){ id = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(KEY,id); }
+  return id;
+}
+
+function onlineUpsertScore(){
+  if(!Online.enabled || !Online.db) return;
+  const L=currentLevel();
+  const docId = uid();
+  Online.db.collection("leaderboard").doc(docId).set({
+    name: S.name || "Jogador",
+    xp: S.xp || 0,
+    levelId: S.levelId || "Tecnico",
+    levelName: L.name,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, {merge:true}).catch(err=>console.warn("Upsert score error:", err));
+}
+
+function onlineSubscribeLeaderboard(limit=20){
+  if(!Online.enabled || !Online.db) return;
+  if(Online.unsub) try{ Online.unsub(); }catch(e){}
+  Online.unsub = Online.db.collection("leaderboard")
+    .orderBy("xp","desc")
+    .limit(limit)
+    .onSnapshot(snap=>{
+      Online.last = [];
+      snap.forEach(doc=> Online.last.push(doc.data()));
+      Online.ready = true; Online.status = "online";
+      renderDash();  // re-render ranking ao chegar dados
+    }, err=>{
+      console.warn("Leaderboard subscribe error:", err);
+      Online.ready = false; Online.status = "offline";
+      renderDash();
+    });
+}
+// ====== Helpers ======
+function todayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function mondayOfThisWeekISO(){const d=new Date();const day=d.getDay();const diff=(day===0?-6:1-day);const m=new Date(d);m.setDate(d.getDate()+diff);return m.toISOString().slice(0,10)}
+function currentLevel(){let L=LEVELS[0];for(const lv of LEVELS){if(S.xp>=lv.minXP)L=lv}S.levelId=L.id;return L}
+function addXP(v){S.xp+=v;toast("+"+v+" "+t("xp"));try{ if(Settings.sound) document.getElementById("audioWin").play().catch(()=>{}) }catch(e){}; if(Settings.confetti){confetti({particleCount:120,spread:65,origin:{y:.6}})} save(); onlineUpsertScore(); renderDash();}
+function toast(msg){const tEl=document.getElementById("toast");tEl.textContent=msg;tEl.style.display="block";setTimeout(()=>tEl.style.display="none",1800)}
+
+// ====== Render ======
+function renderDash(){
+  const L=currentLevel();
+  document.getElementById("hello").textContent = (lang==="en"?"Hello, ":"Hola, ") && (lang==="pt" ? `Olá, ${S.name||"Jogador"}` : (lang==="en"?`Hello, ${S.name||"Player"}`:`Hola, ${S.name||"Jugador"}`));
+  document.getElementById("roleMini").textContent=`${L.name} — ${L.desc}`;
+  document.getElementById("levelNowPill").textContent=`${L.icon} ${L.name}`;
+  document.getElementById("xpNow").textContent=S.xp;
+  document.getElementById("xpGoal").textContent=isFinite(L.nextXP)?L.nextXP:"∞";
+  const pct=isFinite(L.nextXP)?Math.max(0,Math.min(100,100*(S.xp-L.minXP)/(L.nextXP-L.minXP))):100;
+  document.getElementById("xpBar").style.width=pct+"%";
+  document.getElementById("streak").textContent="🔥 "+S.streak;
+  document.getElementById("energy").textContent=S.energy;
+
+  const mondayIso=mondayOfThisWeekISO();
+  if(S.week.startIso!==mondayIso){S.week.startIso=mondayIso;S.week.modulesDone=0;save()}
+  document.getElementById("weekProg").textContent=`(${S.week.modulesDone}/3)`;
+  document.getElementById("weekBar").style.width=Math.min(100,(S.week.modulesDone/3)*100)+"%";
+
+  const mods=document.getElementById("mods");mods.innerHTML="";
+  MODULES.forEach(m=>{
+    const locked=(m.nivel!==L.name);const score=S.cleared[m.id]||0;
+    const icon=(m.nivel==='Técnico'?'👷':m.nivel==='Analista'?'👨‍💻':m.nivel==='Especialista'?'👨‍🔧':m.nivel==='Gerente/Diretor'?'👔':'🔮');
+    const el=document.createElement("div");el.className="mod";
+    const lockedText = lang==='en'?'Locked':(lang==='es'?'Bloqueado':'bloqueado');
+    const notStarted = lang==='en'?'Not started':(lang==='es'?'No iniciado':'Ainda não iniciado');
+    const bestLabel = lang==='en'?'best:':(lang==='es'?'mejor:':'melhor:');
+    el.innerHTML=`<div class="left"><div class="lvl">${icon}</div><div><div><b>${m.titulo}</b> <span class="meta">#${m.id} · ${m.nivel}</span></div><div class="meta">${locked?'<span class="lock">🔒 '+lockedText+'</span>':(score?bestLabel+` ${score}/10`:notStarted)}</div></div></div><div>${score?`<span class="meta">${bestLabel} ${score}/10</span>`:""}<button class="btn" ${locked?'disabled':''} data-mod="${m.id}">${locked?'🔒':'▶️ '+(lang==='en'?'Start':(lang==='es'?'Iniciar':'Iniciar'))}</button></div>`;
+    mods.appendChild(el);
+  });
+  document.querySelectorAll('[data-mod]').forEach(b=>b.onclick=(e)=>{startQuiz(+e.currentTarget.getAttribute('data-mod'))});
+
+  
+  // Render ranking (online se disponível, senão local) + medalhas + barra
+  const rankDiv = document.getElementById("rankList");
+  if (rankDiv) {
+    // Header status
+    updateRankHeader();
+    // Refresh button
+    rankDiv.innerHTML = "";
+    const btn = document.createElement("button");
+    btn.className = "btn ghost";
+    btn.style.marginBottom = "8px";
+    btn.textContent = (lang==='en'?'Refresh ranking':'Atualizar ranking');
+    btn.onclick = ()=>{ if (Online.enabled){ onlineSubscribeLeaderboard(20);} renderDash(); };
+    rankDiv.appendChild(btn);
+
+    const data = (Online.enabled && Online.ready && Online.last.length) ? Online.last : (S.rank || []);
+    if (!data.length) {
+      const item = document.createElement("div");
+      item.className = "meta";
+      item.textContent = (Online.enabled? (lang==='en'?'Loading ranking...':'Carregando ranking...') : (lang==='en'?'No ranking data':'Sem dados de ranking.'));
+      rankDiv.appendChild(item);
+    } else {
+      data.slice(0,20).forEach((r,i)=>{
+        const item = document.createElement("div");
+        item.className = "mod";
+        item.style.display = "flex";
+        item.style.flexDirection = "column";
+        const name = r.name || "Jogador";
+        const xp = r.xp || 0;
+
+        // Medalha para top 3
+        const medal = i===0?'🥇':(i===1?'🥈':(i===2?'🥉':'#'+(i+1)));
+        // Estimar nível por XP
+        let Lname='Técnico', Lmin=0, Lnext=1000, Licon='👷';
+        try{
+          let Ltmp = LEVELS[0];
+          for (const lv of LEVELS){ if (xp>=lv.minXP) Ltmp = lv; }
+          Lname = Ltmp.name; Lmin = Ltmp.minXP; Lnext = isFinite(Ltmp.nextXP)?Ltmp.nextXP:(xp||1);
+          Licon = (Lname==='Técnico'?'👷':Lname==='Analista'?'👨‍💻':Lname==='Especialista'?'👨‍🔧':Lname==='Gerente/Diretor'?'👔':'🔮');
+        }catch(e){/* noop */}
+        const pct = Math.max(0, Math.min(100, (100*(xp - Lmin)/((Lnext - Lmin)||1))));
+
+        item.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+            <div><b>${medal}</b> ${Licon} ${name} <span class="meta">(${Lname})</span></div>
+            <div class="meta">${xp} XP</div>
+          </div>
+          <div class="xpbar" style="margin-top:6px"><i style="width:${pct}%"></i></div>
+        `;
+        rankDiv.appendChild(item);
+      });
+    }
+  }
+applyI18n();
+}
+
+// ====== Login ======
+function doLogin(){
+  const name=(document.getElementById("inpName").value||"").trim()||(lang==="en"?"Player":(lang==="es"?"Jugador":"Jogador"));
+  S.name=name;S.levelId="Tecnico";
+  const tk=todayKey();
+  if(S.lastLoginDay!==tk){S.streak=(S.lastLoginDay && ((new Date(tk)-new Date(S.lastLoginDay))===86400000))?(S.streak+1):1;S.lastLoginDay=tk}
+  save(); OnlineInit(); onlineUpsertScore();
+  // hide brand + login, show top bar + dash
+  document.getElementById("brandLogin").classList.add("hidden");
+  document.getElementById("viewLogin").classList.add("hidden");
+  document.getElementById("topBar").classList.remove("hidden");
+  const dash=document.getElementById("viewDash");
+  dash.classList.remove("hidden"); setTimeout(()=>dash.classList.add("show"),0);
+  document.getElementById("btnLogout").classList.remove("hidden");
+  renderDash();
+  toast(t("welcome"));
+}
+document.getElementById("btnLogin").onclick=doLogin;
+document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(STATE_KEY);location.reload()};
+
+// ====== Quiz ======
+let curQuiz=null,curIdx=0,curScore=0,curModId=0;
+function pickTen(qs){if(qs.length<=10)return qs.slice();const arr=qs.slice();const out=[];while(out.length<10&&arr.length){const i=Math.floor(Math.random()*arr.length);out.push(arr.splice(i,1)[0])}return out}
+function startQuiz(modId){curModId=modId;const raw=QUIZZES[modId]||QUIZZES[13]||QUIZ_FALLBACK;curQuiz=pickTen(raw);curIdx=0;curScore=0;document.getElementById("quizTitle").textContent=`${t("modules_hdr")} #${modId}`;document.getElementById("quizOverlay").style.display="flex";document.getElementById("qExplain").classList.add("hidden");renderQuestion()}
+function closeQuiz(){document.getElementById("quizOverlay").style.display="none"}
+document.getElementById("btnCloseQuiz").onclick=closeQuiz;
+function renderQuestion(){
+  const q=curQuiz[curIdx];document.getElementById("qNum").textContent=(curIdx+1);document.getElementById("qText").textContent=q.q;
+  const box=document.getElementById("qOpts");const exp=document.getElementById("qExplain");exp.classList.add("hidden");exp.textContent="";box.innerHTML="";
+  const L=currentLevel();const XP_HIT=XP_PER_LEVEL[L.id]||30;
+  function addOpt(label,isCorrect){const div=document.createElement("div");div.className="opt";div.textContent=label;div.onclick=()=>{if(isCorrect){div.classList.add("correct");curScore++;addXP(XP_HIT)}else{div.classList.add("wrong")}exp.textContent=q.exp||"";exp.classList.remove("hidden");box.querySelectorAll(".opt").forEach(o=>o.style.pointerEvents="none")};box.appendChild(div)}
+  if(!q.type||q.type==="multi-choice"){q.opts.forEach((o,i)=>addOpt(o,i===q.ok))}
+  else if(q.type==="text"){const inp=document.createElement("input");inp.type="text";inp.placeholder=lang==="en"?"Type your answer...":(lang==="es"?"Escribe tu respuesta...":"Digite sua resposta...");box.appendChild(inp);const btn=document.createElement("button");btn.className="btn";btn.textContent="Validar";btn.onclick=()=>{const val=(inp.value||"").toLowerCase().trim();const arr=(q.answerText||[]).map(x=>x.toLowerCase());const ok=arr.some(x=>val.includes(x));if(ok){addXP(XP_HIT);exp.textContent=q.exp||"Correto."}else{exp.textContent=q.exp||"Revise o conceito."}exp.classList.remove("hidden");btn.disabled=true};box.appendChild(btn)}
+  else if(q.type==="calc"){const inp=document.createElement("input");inp.type="number";inp.step="any";inp.placeholder=lang==="en"?"Value":"Valor";box.appendChild(inp);const btn=document.createElement("button");btn.className="btn";btn.textContent="Calcular";btn.onclick=()=>{const v=parseFloat(inp.value);const tol=q.tolerance??0;const ok=Math.abs(v-q.answer)<=tol;if(ok){addXP(XP_HIT);exp.textContent=q.exp||"Certo!"}else{exp.textContent=`Esperado ≈ ${q.answer}${q.unit?(" "+q.unit):""}. ${q.exp||""}`}exp.classList.remove("hidden");btn.disabled=true};box.appendChild(btn)}
+  else if(q.type==="order"){const src=q.items.slice();const ul=document.createElement("div");ul.className="row";src.forEach((it)=>{const p=document.createElement("div");p.className="pill";p.draggable=true;p.textContent=it;p.ondragstart=(e)=>{e.dataTransfer.setData("text/plain",it)};ul.appendChild(p)});const target=document.createElement("div");target.className="row";target.style.minHeight="42px";target.ondragover=(e)=>e.preventDefault();target.ondrop=(e)=>{e.preventDefault();const t=e.dataTransfer.getData("text/plain");const el=Array.from(ul.children).find(x=>x.textContent===t);if(el){target.appendChild(el)}};box.appendChild(ul);box.appendChild(target);const btn=document.createElement("button");btn.className="btn";btn.textContent="Validar";btn.onclick=()=>{const arr=Array.from(target.children).map(x=>x.textContent);const ok=JSON.stringify(arr)===JSON.stringify(q.correctOrder);if(ok){addXP(XP_HIT);exp.textContent=q.exp||"Certo!"}else{exp.textContent=`Ordem esperada: ${q.correctOrder.join(" → ")}. ${q.exp||""}`}exp.classList.remove("hidden");btn.disabled=true};box.appendChild(btn)}
+}
+document.getElementById("btnNext").onclick=()=>{if(!curQuiz)return;if(curIdx<curQuiz.length-1){curIdx++;renderQuestion()}else{const best=S.cleared[curModId]||0;if(curScore>best)S.cleared[curModId]=curScore;const tk=todayKey();if(curScore===10&&S.dailyDoneOn!==tk){S.dailyDoneOn=tk;addXP(20);toast(t("mission_daily_done"))}const mondayIso=mondayOfThisWeekISO();if(S.week.startIso!==mondayIso){S.week.startIso=mondayIso;S.week.modulesDone=0}S.week.modulesDone=Math.min(3,S.week.modulesDone+1);if(S.week.modulesDone===3){addXP(100);toast(t("mission_week_done"))}save();toast(t("module_done",{id:String(curModId),score:String(curScore)}));closeQuiz();renderDash()}};
+
+// ====== Config handlers ======
+document.getElementById("btnConfig").onclick=()=>{
+  document.getElementById("cfgOverlay").style.display="flex";
+  document.getElementById("selTheme").value=Settings.theme;
+  document.getElementById("chkSound").checked=!!Settings.sound;
+  document.getElementById("chkConfetti").checked=!!Settings.confetti;
+  const ls=document.getElementById("langSel"); ls.value=lang;
+  applyI18n();
+};
+document.getElementById("btnCloseCfg").onclick=()=>{document.getElementById("cfgOverlay").style.display="none"};
+document.getElementById("selTheme").addEventListener("change",(e)=>{Settings.theme=e.target.value;saveSettings();applyTheme()});
+document.getElementById("chkSound").addEventListener("change",(e)=>{Settings.sound=!!e.target.checked;saveSettings()});
+document.getElementById("chkConfetti").addEventListener("change",(e)=>{Settings.confetti=!!e.target.checked;saveSettings()});
+document.getElementById("langSel").addEventListener("change",(e)=>{
+  lang = e.target.value;
+  localStorage.setItem("duoplanning.lang", lang);
+  applyI18n(); renderDash();
+});
+document.getElementById("btnReset").onclick=()=>{
+  localStorage.removeItem(STATE_KEY);
+  S={name:"",xp:0,energy:3,levelId:"Tecnico",streak:0,lastLoginDay:"",cleared:{},week:{startIso:"",modulesDone:0},dailyDoneOn:"",rank:[{name:"Você",xp:0},{name:"Alice",xp:560},{name:"Bruno",xp:320}]};
+  save(); toast(t("saved")); renderDash();
+};
+
+// ====== Init ======
+applyTheme();
+applyI18n();
+if(S.name){ OnlineInit(); onlineUpsertScore();
+  document.getElementById("brandLogin").classList.add("hidden");
+  document.getElementById("viewLogin").classList.add("hidden");
+  document.getElementById("topBar").classList.remove("hidden");
+  const dash=document.getElementById("viewDash");
+  dash.classList.remove("hidden"); setTimeout(()=>dash.classList.add("show"),0);
+  document.getElementById("btnLogout").classList.remove("hidden");
+  renderDash();
+}
+</script>
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js');
+    }
+</script>
+</body>
+</html>
