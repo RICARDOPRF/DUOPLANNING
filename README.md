@@ -1,4 +1,4 @@
-# Duoplanning PWA (Manifesto Corrigido)
+# Duoplanning PWA (Manifesto Corrigido + Service Worker Otimizado)
 
 ## Como instalar no Android (PWA)
 1. Hospede os arquivos em um servidor HTTPS (GitHub Pages, Vercel, Netlify).
